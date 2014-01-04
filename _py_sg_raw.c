@@ -181,14 +181,14 @@ static PyObject* send_raw_command(PyObject* self, PyObject* args)
 
     if (!PyArg_ParseTuple(
     		args,
-    		"sis#|s#i",
+    		"sis#|is#",
     		&device_name,
     		&timeout,
     		&cdb,
     		&cdb_length,
+    		&datain_len,
     		&dataout_buffer,
-    		&dataout_len,
-    		&datain_len))
+    		&dataout_len))
             return NULL;
 
     if (dataout_len > 0){
