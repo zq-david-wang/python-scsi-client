@@ -1,10 +1,23 @@
+/*
+ * A python extension utility program originally written for the Linux OS SCSI subsystem.
+ *
+ * Based on Sg3 utility, http://sg.danny.cz/sg/sg3_utils.html
+ *
+ * Author: David Wang (00107082@163.com)
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2, or (at your option)
+ * any later version.
+ *
+ * This program can be used to send raw SCSI commands in python
+ * through a Generic SCSI interface.
+ */
+
 #include <stdlib.h>
 #include <unistd.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include <string.h>
-#include <getopt.h>
-
 
 #include "sg_lib.h"
 #include "sg_pt.h"
@@ -16,29 +29,30 @@
 #define MAX_SCSI_CDBSZ 256
 #define MAX_SCSI_DXLEN (64 * 1024)
 
+/*Sending SCSI command and receive response*/
 static int _send_raw_command(
         const char* device_name,
         int timeout,
         const unsigned char* cdb,
         int cdb_length,
         unsigned char* sense_buffer,
-        int* p_sense_buffer_len,
+        int* p_sense_buffer_len,//In and Out
         const unsigned char* dataout_buffer,
         int dataout_len,
         unsigned char* datain_buffer,
         int* p_datain_len)
 {
-    int sg_fd = -1;
-    int readonly = 0;
+    int sg_fd = -1; // opened device file id
+    int readonly = 0; //For a generic api, readonly is not enough.
     int do_verbose = 2;
-    int ret = 0;
-    struct sg_pt_base *ptvp = NULL;
-    int slen = 0;
-    int res_cat, status;
-    char b[128];
-    int sense_buffer_len = *p_sense_buffer_len;
-    int datain_len = *p_datain_len;
-    int ret_datain_len = 0;
+    int ret = 0; // return value
+    struct sg_pt_base *ptvp = NULL; // sg3 utility structure pointer
+    int slen = 0; // returned sense buffer length
+    int res_cat, status; // SCSI response code
+    char b[128]; // buffer used for logging assistant
+    int sense_buffer_len = *p_sense_buffer_len; //expected sense buffer length
+    int datain_len = *p_datain_len; // expected datain buffer length
+    int ret_datain_len = 0; // returned datain buffer length
 
 
     sg_fd = scsi_pt_open_device(device_name, readonly, do_verbose);
@@ -57,16 +71,15 @@ static int _send_raw_command(
 
     set_scsi_pt_cdb(ptvp, cdb, cdb_length);
     set_scsi_pt_sense(ptvp, sense_buffer, sense_buffer_len);
-
     if (dataout_len > 0){
         set_scsi_pt_data_out(ptvp, dataout_buffer, dataout_len);
     }
-
     if (datain_len > 0){
         set_scsi_pt_data_in(ptvp, datain_buffer, datain_len);
     }
 
     ret = do_scsi_pt(ptvp, sg_fd, timeout, do_verbose);
+
     if (ret > 0) {
         if (SCSI_PT_DO_BAD_PARAMS == ret) {
             fprintf(stderr, "do_scsi_pt: bad pass through setup\n");
@@ -145,7 +158,7 @@ static unsigned char *
 my_memalign(int length, unsigned char ** wrkBuffp)
 {
     unsigned char * wrkBuff;
-    size_t psz = 4096;     /* give up, pick likely figure */
+    size_t psz = 4096;     /* no bother here, pick likely figure */
 
 
     wrkBuff = (unsigned char*)calloc(length + psz, 1);
@@ -163,20 +176,19 @@ my_memalign(int length, unsigned char ** wrkBuffp)
 
 static PyObject* send_raw_command(PyObject* self, PyObject* args)
 {
-    const char* device_name;
-    int timeout;
-    const unsigned char* cdb;
+    const char* device_name;  //something like /dev/sg0
+    int timeout; // in seconds for waiting for the response from the device
+    const unsigned char* cdb; // byte stream for SCSI command
     int cdb_length;
-    unsigned char* dataout_buffer = NULL;
-    unsigned char* dataout_buffer_handler = NULL;
+    unsigned char* dataout_buffer = NULL; //IN
+    unsigned char* dataout_buffer_handler = NULL; //
     int dataout_len = 0;
     unsigned char* datain_buffer = NULL;
     unsigned char* datain_buffer_handler = NULL;
     int datain_len = 0;
-    unsigned char sense_buffer[32]={0};
+    unsigned char sense_buffer[32]={0}; //hope this is enough
     int sense_buffer_len = sizeof(sense_buffer);
     PyObject* output = NULL;
-
     int result = 0;
 
     if (!PyArg_ParseTuple(
