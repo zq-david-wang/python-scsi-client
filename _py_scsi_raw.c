@@ -5,6 +5,10 @@
 #include <sys/ioctl.h>
 #include <scsi/sg.h>
 
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+
 #define DEFAULT_TIMEOUT 20
 #define BLOCK_SIZE 4096
 
@@ -16,7 +20,7 @@ static int _send_raw_command(
         int cdb_length,
         unsigned char* sense_buffer,
         int* p_sense_buffer_len,//In and Out
-        const unsigned char* dataout_buffer,
+        unsigned char* dataout_buffer,
         int dataout_len,
         unsigned char* datain_buffer,
         int* p_datain_len)
@@ -110,7 +114,7 @@ static PyObject* send_raw_command(PyObject* self, PyObject* args)
 {
     const char* device_name;  //something like /dev/sg0
     int timeout; // in seconds for waiting for the response from the device
-    const unsigned char* cdb; // byte stream for SCSI command
+    unsigned char* cdb; // byte stream for SCSI command
     int cdb_length;
     unsigned char* dataout_buffer = NULL; //IN
     unsigned char* dataout_buffer_handler = NULL; //
@@ -142,16 +146,12 @@ static PyObject* send_raw_command(PyObject* self, PyObject* args)
             memcpy(temp_dataout_buffer,dataout_buffer,dataout_len);
             dataout_buffer = temp_dataout_buffer;
     }
-    else
-            dataout_buffer = "";
 
     if (datain_len > 0){
             datain_buffer = my_memalign(datain_len, &datain_buffer_handler);
             if (datain_buffer == NULL)
             goto bail;
     }
-    else
-            datain_buffer = "";
 
     result = _send_raw_command(device_name,
                     timeout,
