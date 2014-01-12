@@ -1,6 +1,6 @@
 import logging
 
-from sg_scsi import exceptions
+from ioctl_scsi import exceptions
 from _py_scsi_raw import raw_scsi
 
 LOG = logging.getLogger(__name__)
@@ -20,7 +20,7 @@ class BaseSCSICommand(object):
         return "SCSICommand: "+self.cdb
     
     def execute(self, device='/dev/sg0', timeout = 10):
-        r = raw_scsi(device, timeout, self.cdb, self.data_out, self.data_in_len)
+        r = raw_scsi(device, timeout, self.cdb, self.data_in_len, self.data_out, )
         if r:
             self.sense_data = r[1]
             self.date_in = r[2]
@@ -64,6 +64,6 @@ class InquirySCSICommand(BaseSCSICommand):
         cdb[4] = allocation_length & 0xff
         cdb[5] = control
         data_in_len = allocation_length
-        super(InquirySCSICommand, self).__init__(cdb, "", data_in_len)
+        super(InquirySCSICommand, self).__init__(str(cdb), "", data_in_len)
         
         
